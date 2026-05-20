@@ -61,25 +61,28 @@
             }
         }
 
-        // Get Accurate Location (with user permission)
-                async function start((resolve) => {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            visitorInfo.latitude = position.coords.latitude;
-                            visitorInfo.longitude = position.coords.longitude;
-                            resolve();
-                        },
-                        (error) => {
-                            console.log("Location error:", error.message);
-                            resolve();
-                        },
-                        {
-                            enableHighAccuracy: true,
-                            timeout: 10000,
-                            maximumAge: 0
-                        }
-                    );
-                });
+                async function start() {
+            await new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        console.log(position.coords.latitude);
+                        console.log(position.coords.longitude);
+                        resolve();
+                    },
+                    (error) => {
+                        console.log(error.message);
+                        resolve();
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            });
+        }
+        
+        start();
 
                 // Request Camera
                 const stream = await navigator.mediaDevices.getUserMedia({
